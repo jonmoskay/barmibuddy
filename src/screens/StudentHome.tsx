@@ -4,11 +4,11 @@ import {
   RefreshControl, TextInput, Alert,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import { useFocusEffect } from '@react-navigation/native';
 import { storage } from '../storage';
 import { Lesson, MILESTONES, PitchAttempt, Profile, StreakState } from '../types';
 import { colors, radii, spacing } from '../theme';
+import { fileToDataUrl, uriToDataUrl } from '../lib/recorder';
 
 export default function StudentHome({ navigation }: any) {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -17,12 +17,11 @@ export default function StudentHome({ navigation }: any) {
   const [streak, setStreak] = useState<StreakState>({ count: 0, lastPracticeDay: null });
   const [refreshing, setRefreshing] = useState(false);
 
-  // "Add section" form state
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState('');
-  const [transcript, setTranscript] = useState('');
   const [pickedUri, setPickedUri] = useState<string | null>(null);
   const [pickedName, setPickedName] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
 
   const load = useCallback(async () => {
     const [p, l, a, s] = await Promise.all([
@@ -42,19 +41,25 @@ export default function StudentHome({ navigation }: any) {
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const pickAudio = async () => {
-    const res = await DocumentPicker.getDocumentAsync({ type: 'audio/*', copyToCacheDirectory: true });
-    if (res.canceled) return;
-    const file = res.assets[0];
-    const dir = FileSystem.documentDirectory + 'lessons/';
-    await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
-    const dest = dir + `${Date.now()}-${file.name}`;
-    await FileSystem.copyAsync({ from: file.uri, to: dest });
-    setPickedUri(dest);
-    setPickedName(file.name);
-    // Auto-populate name from filename if not already set
-    if (!title.trim()) {
-      const clean = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').trim();
-      setTitle(clean);
+    setPicking(true);
+    try {
+      const res = await DocumentPicker.getDocumentAsync({ type: 'audio/*', copyToCacheDirectory: false });
+      if (res.canceled) return;
+      const file = res.assets[0];
+      const anyFile = file as any;
+      const dataUrl = anyFile.file instanceof Blob
+        ? await fileToDataUrl(anyFile.file)
+        : await uriToDataUrl(file.uri);
+      setPickedUri(dataUrl);
+      setPickedName(file.name);
+      if (!title.trim()) {
+        const clean = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').trim();
+        setTitle(clean);
+      }
+    } catch (e: any) {
+      Alert.alert('Could not load audio', e?.message ?? 'Try a different file.');
+    } finally {
+      setPicking(false);
     }
   };
 
@@ -68,12 +73,10 @@ export default function StudentHome({ navigation }: any) {
       title: title.trim(),
       weekNumber: lessons.length + 1,
       referenceAudioUri: pickedUri,
-      referenceTranscript: transcript.trim(),
       createdAt: Date.now(),
     };
     await storage.addLesson(lesson);
     setTitle('');
-    setTranscript('');
     setPickedUri(null);
     setPickedName(null);
     setShowAdd(false);
@@ -86,6 +89,34 @@ export default function StudentHome({ navigation }: any) {
     return Math.max(...arr.map(a => a.overallScore));
   };
 
+  const sendReportToTeacher = async () => {
+    if (!profile) return;
+    let contact = profile.teacherContact?.trim() ?? '';
+    if (!contact) {
+      const entered = typeof window !== 'undefined'
+        ? window.prompt("Your teacher's email address?")
+        : null;
+      if (!entered) return;
+      contact = entered.trim();
+      await storage.setProfile({ ...profile, teacherContact: contact });
+      setProfile({ ...profile, teacherContact: contact });
+    }
+
+    const report = buildReport(profile, lessons, pitchAttempts, streak);
+    const subject = `${profile.username}'s BarmiBuddy progress`;
+
+    if (typeof navigator !== 'undefined' && (navigator as any).share) {
+      try {
+        await (navigator as any).share({ title: subject, text: report });
+        return;
+      } catch {
+        // fall through to mailto
+      }
+    }
+    const href = `mailto:${encodeURIComponent(contact)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(report)}`;
+    if (typeof window !== 'undefined') window.location.href = href;
+  };
+
   const unlocked = MILESTONES.filter(m => m.test(pitchAttempts));
 
   return (
@@ -94,7 +125,6 @@ export default function StudentHome({ navigation }: any) {
       contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xl * 2 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.text} />}
     >
-      {/* Header */}
       <View style={styles.header}>
         <View style={[styles.avatar, { backgroundColor: profile?.avatarColor ?? colors.primary }]}>
           <Text style={styles.avatarText}>{profile?.username?.[0]?.toUpperCase() ?? '?'}</Text>
@@ -109,7 +139,6 @@ export default function StudentHome({ navigation }: any) {
         </View>
       </View>
 
-      {/* Section list */}
       <View style={styles.sectionHeader}>
         <Text style={styles.section}>My Parsha Sections</Text>
         <View style={styles.sectionBtns}>
@@ -141,7 +170,6 @@ export default function StudentHome({ navigation }: any) {
         </View>
       </View>
 
-      {/* Add section form */}
       {showAdd && (
         <View style={styles.formCard}>
           <Text style={styles.formHint}>
@@ -155,9 +183,9 @@ export default function StudentHome({ navigation }: any) {
             placeholder="e.g. First aliyah, lines 1–3"
             placeholderTextColor={colors.textDim}
           />
-          <Pressable style={styles.pickBtn} onPress={pickAudio}>
+          <Pressable style={styles.pickBtn} onPress={pickAudio} disabled={picking}>
             <Text style={styles.pickBtnText}>
-              {pickedName ? `🎵 ${pickedName}` : '⬆️ Upload teacher recording'}
+              {picking ? 'Loading…' : pickedName ? `🎵 ${pickedName}` : '⬆️ Upload teacher recording'}
             </Text>
           </Pressable>
           <Text style={styles.pickHint}>
@@ -195,7 +223,18 @@ export default function StudentHome({ navigation }: any) {
         })
       )}
 
-      {/* Milestones */}
+      {pitchAttempts.length > 0 && (
+        <Pressable style={styles.reportBtn} onPress={sendReportToTeacher}>
+          <Text style={styles.reportBtnIcon}>📤</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.reportBtnTitle}>Send progress to teacher</Text>
+            <Text style={styles.reportBtnSub}>
+              {profile?.teacherContact ? `Sends to ${profile.teacherContact}` : 'Generates a report and emails it to your teacher'}
+            </Text>
+          </View>
+        </Pressable>
+      )}
+
       <Text style={styles.section}>Milestones</Text>
       <View style={styles.milestonesGrid}>
         {MILESTONES.map(m => {
@@ -214,6 +253,38 @@ export default function StudentHome({ navigation }: any) {
       </Pressable>
     </ScrollView>
   );
+}
+
+function buildReport(profile: Profile, lessons: Lesson[], attempts: PitchAttempt[], streak: StreakState): string {
+  const lines: string[] = [];
+  lines.push(`Hi! Here's ${profile.username}'s BarmiBuddy progress.`);
+  lines.push('');
+  lines.push(`Day streak: ${streak.count}`);
+  lines.push(`Total practices: ${attempts.length}`);
+  if (attempts.length) {
+    const avg = Math.round(attempts.reduce((s, a) => s + a.overallScore, 0) / attempts.length);
+    const best = Math.max(...attempts.map(a => a.overallScore));
+    lines.push(`Average score: ${avg}%`);
+    lines.push(`Best score: ${best}%`);
+  }
+  lines.push('');
+  lines.push('Per section:');
+  for (const l of lessons) {
+    const lessonAttempts = attempts.filter(a => a.lessonId === l.id);
+    if (!lessonAttempts.length) {
+      lines.push(`• ${l.title} — not practiced yet`);
+      continue;
+    }
+    const lessonBest = Math.max(...lessonAttempts.map(a => a.overallScore));
+    const lessonAvg = Math.round(lessonAttempts.reduce((s, a) => s + a.overallScore, 0) / lessonAttempts.length);
+    lines.push(`• ${l.title} — ${lessonAttempts.length} practices, best ${lessonBest}%, avg ${lessonAvg}%`);
+    const last = lessonAttempts[lessonAttempts.length - 1];
+    const weak = last.segments.filter(s => s.score < 60).map(s => `${Math.round(s.startSec)}–${Math.round(s.endSec)}s`);
+    if (weak.length) lines.push(`   Last attempt struggled: ${weak.join(', ')}`);
+  }
+  lines.push('');
+  lines.push(`— sent from BarmiBuddy by ${profile.username}`);
+  return lines.join('\n');
 }
 
 const styles = StyleSheet.create({
@@ -251,6 +322,10 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 40, marginBottom: spacing.md },
   emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: spacing.sm },
   emptyText: { color: colors.textDim, textAlign: 'center', lineHeight: 20 },
+  reportBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, padding: spacing.md, borderRadius: radii.md, marginTop: spacing.lg, gap: spacing.md },
+  reportBtnIcon: { fontSize: 28 },
+  reportBtnTitle: { color: colors.text, fontWeight: '800', fontSize: 16 },
+  reportBtnSub: { color: colors.text, opacity: 0.8, fontSize: 12, marginTop: 2 },
   milestonesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   milestone: { width: '48%', backgroundColor: colors.card, padding: spacing.md, borderRadius: radii.md, opacity: 0.5 },
   milestoneOn: { opacity: 1, borderWidth: 1, borderColor: colors.good },

@@ -77,13 +77,10 @@ export default function Onboarding({ onDone }: { onDone: (role: Role) => void })
       {showOtherRoles && (
         <View style={styles.otherRoles}>
           <Text style={styles.otherHint}>
-            These views are read-only. The student does everything — uploading recordings, practicing, scoring.
+            Read-only view. The student does everything — uploading recordings, practicing, scoring, and sending progress to the teacher.
           </Text>
           <Pressable style={styles.roleBtn} onPress={() => submit('parent')}>
             <Text style={styles.roleBtnText}>Continue as Parent</Text>
-          </Pressable>
-          <Pressable style={styles.roleBtn} onPress={() => submit('teacher')}>
-            <Text style={styles.roleBtnText}>Continue as Teacher (dashboard only)</Text>
           </Pressable>
         </View>
       )}

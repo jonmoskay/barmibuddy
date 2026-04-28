@@ -28,7 +28,7 @@ export default function Settings({ navigation }: any) {
       <Text style={styles.title}>Settings</Text>
 
       <Text style={styles.label}>Switch role</Text>
-      {(['student', 'teacher', 'parent'] as Role[]).map(r => (
+      {(['student', 'parent'] as Role[]).map(r => (
         <Pressable key={r} style={styles.row} onPress={() => switchRole(r)}>
           <Text style={styles.rowText}>{r[0].toUpperCase() + r.slice(1)}</Text>
           <Text style={styles.rowArrow}>→</Text>

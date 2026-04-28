@@ -3,10 +3,10 @@ import {
   View, Text, ScrollView, Pressable, StyleSheet,
   ActivityIndicator, useWindowDimensions,
 } from 'react-native';
-import { Audio } from 'expo-av';
 import { storage } from '../storage';
 import { Lesson, PitchAttempt } from '../types';
-import PitchExtractor from '../components/PitchExtractor';
+import { extractPitch } from '../lib/pitch';
+import { WebRecorder } from '../lib/recorder';
 import PitchGraph, { Segment } from '../components/PitchGraph';
 import { colors, radii, spacing } from '../theme';
 
@@ -19,7 +19,7 @@ type Stage =
   | 'done';
 
 const HOP_SEC = 0.05;
-const SEGMENT_SEC = 5; // score in 5-second chunks
+const SEGMENT_SEC = 5;
 const API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 
 export default function PitchPractice({ route }: any) {
@@ -31,7 +31,6 @@ export default function PitchPractice({ route }: any) {
   const [stage, setStage] = useState<Stage>('loading');
   const [teacherCurve, setTeacherCurve] = useState<number[]>([]);
   const [studentCurve, setStudentCurve] = useState<number[]>([]);
-  const [studentAudioUri, setStudentAudioUri] = useState<string | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [overallPct, setOverallPct] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -39,8 +38,8 @@ export default function PitchPractice({ route }: any) {
   const [elapsed, setElapsed] = useState(0);
   const [teacherMuted, setTeacherMuted] = useState(false);
 
-  const soundRef = useRef<Audio.Sound | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const recorderRef = useRef<WebRecorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -50,91 +49,80 @@ export default function PitchPractice({ route }: any) {
     if (found?.pitchCurve?.length) {
       setTeacherCurve(found.pitchCurve);
       setStage('ready');
-    } else {
+    } else if (found) {
       setStage('extracting_teacher');
+      try {
+        const { pitchCurve, durationMs } = await extractPitch(found.referenceAudioUri);
+        const updated = { ...found, pitchCurve, pitchDuration: durationMs };
+        await storage.updateLesson(updated);
+        setLesson(updated);
+        setTeacherCurve(pitchCurve);
+        setStage('ready');
+      } catch (e: any) {
+        setError(e?.message ?? 'Could not analyse teacher audio');
+        setStage('ready');
+      }
     }
   }, [lessonId]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     return () => {
-      soundRef.current?.unloadAsync();
-      recordingRef.current?.stopAndUnloadAsync().catch(() => {});
+      audioRef.current?.pause();
+      recorderRef.current?.cancel();
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
-
-  const onTeacherPitchReady = async (curve: number[], durationMs: number) => {
-    if (!lesson) return;
-    const updated = { ...lesson, pitchCurve: curve, pitchDuration: durationMs };
-    await storage.updateLesson(updated);
-    setLesson(updated);
-    setTeacherCurve(curve);
-    setStage('ready');
-  };
 
   const startSinging = async () => {
     if (!lesson) return;
     setError(null);
     setStudentCurve([]);
-    setStudentAudioUri(null);
     setSegments([]);
     setOverallPct(null);
     setFeedback(null);
     setElapsed(0);
 
     try {
-      const perm = await Audio.requestPermissionsAsync();
-      if (!perm.granted) { setError('Microphone permission denied'); return; }
+      const audio = new Audio(lesson.referenceAudioUri);
+      audio.onended = () => { finishSinging(); };
+      audioRef.current = audio;
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-      });
+      const rec = new WebRecorder();
+      await rec.start();
+      recorderRef.current = rec;
 
-      soundRef.current?.unloadAsync();
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: lesson.referenceAudioUri },
-        { shouldPlay: true },
-        async (status) => {
-          if (status.isLoaded && status.didJustFinish) await finishSinging();
-        },
-      );
-      soundRef.current = sound;
-
-      const rec = new Audio.Recording();
-      await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await rec.startAsync();
-      recordingRef.current = rec;
+      await audio.play();
 
       timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
       setStage('singing');
     } catch (e: any) {
-      setError(e?.message ?? 'Could not start');
+      setError(e?.message ?? 'Could not start recording');
       setStage('ready');
     }
   };
 
-  const toggleMute = async () => {
+  const toggleMute = () => {
     const next = !teacherMuted;
     setTeacherMuted(next);
-    await soundRef.current?.setVolumeAsync(next ? 0 : 1);
+    if (audioRef.current) audioRef.current.volume = next ? 0 : 1;
   };
 
   const finishSinging = async () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    soundRef.current?.stopAsync();
+    audioRef.current?.pause();
+    const rec = recorderRef.current;
+    if (!rec) { setStage('ready'); return; }
+    setStage('analysing_student');
     try {
-      const rec = recordingRef.current;
-      if (!rec) { setStage('ready'); return; }
-      await rec.stopAndUnloadAsync();
-      const uri = rec.getURI();
-      recordingRef.current = null;
-      if (!uri) { setStage('ready'); return; }
-      setStudentAudioUri(uri);
-      setStage('analysing_student');
-    } catch { setStage('ready'); }
+      const uri = await rec.stop();
+      recorderRef.current = null;
+      const { pitchCurve } = await extractPitch(uri);
+      await onStudentPitchReady(pitchCurve);
+    } catch (e: any) {
+      setError(e?.message ?? 'Could not analyse your recording');
+      setStage('ready');
+    }
   };
 
   const onStudentPitchReady = async (curve: number[]) => {
@@ -163,7 +151,6 @@ export default function PitchPractice({ route }: any) {
   const reset = () => {
     setStage('ready');
     setStudentCurve([]);
-    setStudentAudioUri(null);
     setSegments([]);
     setOverallPct(null);
     setFeedback(null);
@@ -182,32 +169,18 @@ export default function PitchPractice({ route }: any) {
       <Text style={styles.title}>{lesson?.title}</Text>
       <Text style={styles.subtitle}>Sing-along · pitch comparison</Text>
 
-      {stage === 'extracting_teacher' && lesson && (
-        <>
-          <View style={styles.statusCard}>
-            <ActivityIndicator color={colors.text} size="small" />
-            <Text style={styles.statusText}>Analysing teacher melody… (one-time)</Text>
-          </View>
-          <PitchExtractor
-            audioUri={lesson.referenceAudioUri}
-            onPitchReady={onTeacherPitchReady}
-            onError={msg => { setError(msg); setStage('ready'); }}
-          />
-        </>
+      {stage === 'extracting_teacher' && (
+        <View style={styles.statusCard}>
+          <ActivityIndicator color={colors.text} size="small" />
+          <Text style={styles.statusText}>Analysing teacher melody… (one-time)</Text>
+        </View>
       )}
 
-      {stage === 'analysing_student' && studentAudioUri && (
-        <>
-          <View style={styles.statusCard}>
-            <ActivityIndicator color={colors.text} size="small" />
-            <Text style={styles.statusText}>Comparing your melody…</Text>
-          </View>
-          <PitchExtractor
-            audioUri={studentAudioUri}
-            onPitchReady={onStudentPitchReady}
-            onError={() => { setOverallPct(null); setStage('done'); }}
-          />
-        </>
+      {stage === 'analysing_student' && (
+        <View style={styles.statusCard}>
+          <ActivityIndicator color={colors.text} size="small" />
+          <Text style={styles.statusText}>Comparing your melody…</Text>
+        </View>
       )}
 
       {teacherCurve.length > 0 && (stage === 'ready' || stage === 'singing' || stage === 'done') && (
@@ -308,7 +281,6 @@ export default function PitchPractice({ route }: any) {
   );
 }
 
-// Score each 5-second chunk
 function computeSegments(teacher: number[], student: number[]): Segment[] {
   const framesPerSeg = Math.round(SEGMENT_SEC / HOP_SEC);
   const totalFrames = Math.min(teacher.length, student.length);

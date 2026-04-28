@@ -1,4 +1,4 @@
-export type Role = 'student' | 'teacher' | 'parent';
+export type Role = 'student' | 'parent';
 
 export type Lesson = {
   id: string;
@@ -47,6 +47,7 @@ export type Profile = {
   city: string;
   avatarColor: string;
   teamName: string;
+  teacherContact?: string;
 };
 
 export type StreakState = {

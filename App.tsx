@@ -9,7 +9,6 @@ import { Role } from './src/types';
 import { colors } from './src/theme';
 import Onboarding from './src/screens/Onboarding';
 import StudentHome from './src/screens/StudentHome';
-import TeacherHome from './src/screens/TeacherHome';
 import ParentHome from './src/screens/ParentHome';
 import LessonScreen from './src/screens/Lesson';
 import PitchPractice from './src/screens/PitchPractice';
@@ -43,9 +42,8 @@ function Root({ navigation }: any) {
   }
 
   if (!role) return <Onboarding onDone={() => setReloadKey(k => k + 1)} />;
-  if (role === 'student') return <StudentHome navigation={navigation} />;
-  if (role === 'teacher') return <TeacherHome navigation={navigation} />;
-  return <ParentHome navigation={navigation} />;
+  if (role === 'parent') return <ParentHome navigation={navigation} />;
+  return <StudentHome navigation={navigation} />;
 }
 
 export default function App() {

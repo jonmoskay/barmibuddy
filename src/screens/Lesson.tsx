@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { Audio } from 'expo-av';
 import { storage } from '../storage';
 import { Lesson, PitchAttempt } from '../types';
 import { colors, radii, spacing } from '../theme';
@@ -14,7 +13,7 @@ export default function LessonScreen({ route, navigation }: any) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const playerRef = useRef<Audio.Sound | null>(null);
+  const playerRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -25,7 +24,8 @@ export default function LessonScreen({ route, navigation }: any) {
       setPitchAttempts(all);
     })();
     return () => {
-      playerRef.current?.unloadAsync();
+      playerRef.current?.pause();
+      playerRef.current = null;
     };
   }, [lessonId]);
 
@@ -33,18 +33,12 @@ export default function LessonScreen({ route, navigation }: any) {
     if (!lesson || isPlaying) return;
     try {
       setError(null);
-      await playerRef.current?.unloadAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-      });
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: lesson.referenceAudioUri },
-        { shouldPlay: true },
-        (status) => { if (!status.isLoaded || status.didJustFinish) setIsPlaying(false); },
-      );
-      playerRef.current = sound;
+      playerRef.current?.pause();
+      const audio = new Audio(lesson.referenceAudioUri);
+      audio.onended = () => setIsPlaying(false);
+      audio.onerror = () => { setIsPlaying(false); setError('Could not play reference audio'); };
+      playerRef.current = audio;
+      await audio.play();
       setIsPlaying(true);
     } catch (e: any) {
       setError(`Could not play reference: ${e?.message ?? 'unknown error'}`);
@@ -52,7 +46,7 @@ export default function LessonScreen({ route, navigation }: any) {
   };
 
   const stopReference = async () => {
-    await playerRef.current?.stopAsync();
+    playerRef.current?.pause();
     setIsPlaying(false);
   };
 
