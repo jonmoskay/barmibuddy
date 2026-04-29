@@ -80,8 +80,8 @@ export default function Onboarding({ onDone }: { onDone: (role: Role) => void })
           <>
             <Text style={styles.label}>Your name</Text>
             <TextInput style={styles.input} value={username} onChangeText={setUsername} placeholder="Jeremy" placeholderTextColor={colors.textMuted} autoFocus />
-            <Text style={styles.label}>Where you live</Text>
-            <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Melbourne, Australia" placeholderTextColor={colors.textMuted} />
+            <Text style={styles.label}>Hometown</Text>
+            <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Melbourne" placeholderTextColor={colors.textMuted} />
             <Text style={styles.label}>Your synagogue</Text>
             <TextInput style={styles.input} value={synagogue} onChangeText={setSynagogue} placeholder="Caulfield Shule" placeholderTextColor={colors.textMuted} />
 

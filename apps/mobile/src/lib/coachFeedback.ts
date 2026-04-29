@@ -1,8 +1,15 @@
 import { supabase } from "./supabase";
 
+export type Third = "beginning" | "middle" | "end";
+
 export interface CoachFeedbackInput {
+  /** 0–100 score the client computed locally. */
   score: number;
-  notes?: string;
+  /** Which thirds were weak (e.g. ["beginning"]). */
+  weakThirds?: Third[];
+  /** "pitch" = melody/tune feedback. "words" = word-accuracy feedback. */
+  mode?: "pitch" | "words";
+  /** Optional context (parsha name, etc). */
   lesson?: string;
 }
 

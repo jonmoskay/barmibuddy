@@ -6,7 +6,9 @@ import { storage } from '../storage';
 import { Lesson, PitchAttempt, WordScore } from '../types';
 import { extractPitch } from '../lib/pitch';
 import { WebRecorder } from '../lib/recorder';
-import { transcribe, scoreAgainstReference } from '../scoring';
+import { transcribe } from '../lib/transcribe';
+import { getCoachFeedback, Third } from '../lib/coachFeedback';
+import { scoreAgainstReference } from '../scoring';
 import { colors, radii, shadows, spacing } from '../theme';
 
 type Stage =
@@ -21,7 +23,6 @@ type TimingSegment = { startSec: number; endSec: number; score: number };
 
 const HOP_SEC = 0.05;
 const SEGMENT_SEC = 5;
-const API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 
 export default function PitchPractice({ route }: any) {
   const { lessonId } = route.params;
@@ -361,7 +362,7 @@ function computeTimingSegments(teacher: number[], student: number[]): TimingSegm
 }
 
 async function generateWordFeedback(score: number, wordScores: WordScore[]): Promise<string> {
-  if (!API_KEY || !wordScores.length) return genericFeedback(score);
+  if (!wordScores.length) return genericFeedback(score);
 
   const total = wordScores.length;
   const thirds = [
@@ -374,35 +375,14 @@ async function generateWordFeedback(score: number, wordScores: WordScore[]): Pro
     const ok = t.filter(w => w.status !== 'bad').length;
     return ok / t.length;
   });
-  const labels = ['beginning', 'middle', 'end'];
-  const weak = thirdRatios
+  const labels: Third[] = ['beginning', 'middle', 'end'];
+  const weakThirds = thirdRatios
     .map((r, i) => (r < 0.6 ? labels[i] : null))
-    .filter(Boolean);
-
-  const prompt = [
-    `A Bar Mitzvah student (age ~12) just practiced their parsha and got ${score}% of the words correct.`,
-    weak.length
-      ? `They struggled most in the ${weak.join(' and ')} of the section.`
-      : 'They were fairly even throughout.',
-    `Write 2–3 sentences of encouraging coaching feedback in plain English.`,
-    `Focus on whether they said all the words and stayed with the teacher recording — not on pitch or melody.`,
-    `Suggest one concrete next step.`,
-    `Do not mention Hebrew words, transliterations, or percentages.`,
-  ].join(' ');
+    .filter((x): x is Third => x !== null);
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        max_tokens: 150,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
-    if (!res.ok) return genericFeedback(score);
-    const json = await res.json();
-    return json.choices?.[0]?.message?.content?.trim() ?? genericFeedback(score);
+    const fb = await getCoachFeedback({ score, weakThirds, mode: 'words' });
+    return fb || genericFeedback(score);
   } catch {
     return genericFeedback(score);
   }
