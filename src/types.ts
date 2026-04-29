@@ -42,11 +42,34 @@ export type PitchAttempt = {
   createdAt: number;
 };
 
+export type SkinTone = 'light' | 'medium' | 'tan' | 'dark';
+export type Hair = 'none' | 'shortBrown' | 'shortBlack' | 'curly' | 'red' | 'blonde';
+export type Headwear = 'none' | 'yarmulke' | 'capBaseball' | 'hatBeach' | 'beanie';
+export type Glasses = 'none' | 'round' | 'square' | 'aviator';
+export type Mouth = 'smile' | 'grin' | 'smirk' | 'surprised';
+export type Peiyot = 'none' | 'short' | 'long' | 'curly';
+
+export type Character = {
+  skin: SkinTone;
+  hair: Hair;
+  headwear: Headwear;
+  glasses: Glasses;
+  mouth: Mouth;
+  peiyot: Peiyot;
+};
+
 export type Profile = {
   username: string;
   city: string;
+  synagogue: string;
+  parsha?: string;
+  barmiDate?: string; // ISO yyyy-mm-dd
   avatarColor: string;
   teamName: string;
+  teamId?: string;
+  teamPrimary?: string;
+  teamSecondary?: string;
+  character?: Character;
   teacherContact?: string;
 };
 

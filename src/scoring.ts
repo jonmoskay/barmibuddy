@@ -6,12 +6,16 @@ export async function transcribe(audioUri: string): Promise<string> {
   if (!API_KEY) {
     throw new Error('Missing EXPO_PUBLIC_OPENAI_API_KEY in .env');
   }
+  const audioRes = await fetch(audioUri);
+  const blob = await audioRes.blob();
+  // Whisper requires a filename with a recognised extension.
+  const ext = blob.type.includes('webm') ? 'webm'
+    : blob.type.includes('mp4') ? 'mp4'
+    : blob.type.includes('wav') ? 'wav'
+    : 'm4a';
+  const file = new File([blob], `audio.${ext}`, { type: blob.type || `audio/${ext}` });
   const form = new FormData();
-  form.append('file', {
-    uri: audioUri,
-    name: 'audio.m4a',
-    type: 'audio/m4a',
-  } as any);
+  form.append('file', file);
   form.append('model', 'whisper-1');
   form.append('language', 'he');
 

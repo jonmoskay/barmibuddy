@@ -36,7 +36,7 @@ export default function ParentHome({ navigation }: any) {
       <Text style={styles.subtitle}>High-level summary</Text>
 
       <View style={styles.bigCard}>
-        <Text style={styles.bigLabel}>Parsha completion</Text>
+        <Text style={styles.bigLabel}>Parasha completion</Text>
         <Text style={styles.bigNum}>{completion}%</Text>
         <View style={styles.progressBar}><View style={[styles.progressFill, { width: `${completion}%` }]} /></View>
       </View>

@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from
 import { Swipeable } from 'react-native-gesture-handler';
 import { storage } from '../storage';
 import { Lesson, PitchAttempt } from '../types';
-import { colors, radii, spacing } from '../theme';
+import { colors, radii, spacing, shadows } from '../theme';
 
 export default function LessonScreen({ route, navigation }: any) {
   const { lessonId } = route.params;
@@ -62,7 +62,7 @@ export default function LessonScreen({ route, navigation }: any) {
 
       {/* Play reference */}
       <Pressable
-        style={[styles.bigBtn, isPlaying && { backgroundColor: colors.cardAlt }]}
+        style={[styles.bigBtn, styles.skyBtn, isPlaying && { backgroundColor: colors.cardAlt, borderColor: colors.borderStrong }]}
         onPress={isPlaying ? stopReference : playReference}
       >
         <Text style={styles.bigBtnIcon}>{isPlaying ? '⏹' : '▶'}</Text>
@@ -71,7 +71,7 @@ export default function LessonScreen({ route, navigation }: any) {
 
       {/* Sing along */}
       <Pressable
-        style={[styles.bigBtn, { backgroundColor: '#7C3AED' }]}
+        style={[styles.bigBtn, styles.primaryBtn]}
         onPress={() => navigation.navigate('PitchPractice', { lessonId })}
       >
         <Text style={styles.bigBtnIcon}>🎵</Text>
@@ -169,14 +169,18 @@ export default function LessonScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  title: { color: colors.text, fontSize: 26, fontWeight: '800', marginTop: spacing.md, marginBottom: spacing.lg },
+  title: { color: colors.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.6, marginTop: spacing.md, marginBottom: spacing.lg },
   bigBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.card,
     padding: spacing.lg,
     borderRadius: radii.lg,
     alignItems: 'center',
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+  primaryBtn: { backgroundColor: colors.primary, borderColor: 'transparent', ...shadows.primaryGlow },
+  skyBtn: { backgroundColor: 'rgba(14,165,233,0.12)', borderColor: 'rgba(14,165,233,0.35)' },
   bigBtnIcon: { fontSize: 28, marginBottom: spacing.xs },
   bigBtnText: { color: colors.text, fontWeight: '800', fontSize: 18 },
   errorCard: { backgroundColor: colors.card, padding: spacing.md, borderRadius: radii.md, borderWidth: 1, borderColor: colors.bad, marginBottom: spacing.md },

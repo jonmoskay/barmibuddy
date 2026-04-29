@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert, Platform, ScrollView } from 'react-native';
 import { storage } from '../storage';
 import { Role } from '../types';
 import { colors, radii, spacing } from '../theme';
@@ -10,16 +10,20 @@ export default function Settings({ navigation }: any) {
     navigation.reset({ index: 0, routes: [{ name: 'Root' }] });
   };
 
+  const doReset = async () => {
+    await storage.reset();
+    navigation.reset({ index: 0, routes: [{ name: 'Root' }] });
+  };
+
   const reset = () => {
+    if (Platform.OS === 'web') {
+      const ok = typeof window !== 'undefined' && window.confirm('Reset everything? Clears profile, lessons, and recordings on this device.');
+      if (ok) doReset();
+      return;
+    }
     Alert.alert('Reset everything?', 'Clears profile, lessons, and recordings on this device.', [
       { text: 'Cancel' },
-      {
-        text: 'Reset', style: 'destructive',
-        onPress: async () => {
-          await storage.reset();
-          navigation.reset({ index: 0, routes: [{ name: 'Root' }] });
-        },
-      },
+      { text: 'Reset', style: 'destructive', onPress: doReset },
     ]);
   };
 
@@ -41,8 +45,7 @@ export default function Settings({ navigation }: any) {
       </Pressable>
 
       <Text style={styles.note}>
-        Pilot v1 — data is stored locally on this device only. Cloud sync, real student/teacher
-        accounts, leaderboards, and BarmiBattle come post-pilot.
+        More stuff coming soon — leaderboards vs your shul, battles vs your mates, and BarmiBattle.
       </Text>
     </ScrollView>
   );
