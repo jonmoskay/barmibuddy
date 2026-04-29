@@ -12,7 +12,7 @@ type Step = 1 | 2 | 3 | 4;
 
 export default function Onboarding({ onDone }: { onDone: (role: Role) => void }) {
   const { width } = useWindowDimensions();
-  const teamCols = width > 900 ? 5 : width > 600 ? 3 : 2;
+  const teamCols = width > 480 ? 3 : 2;
   const [step, setStep] = useState<Step>(1);
   const [username, setUsername] = useState('');
   const [city, setCity] = useState('');
@@ -185,7 +185,7 @@ export default function Onboarding({ onDone }: { onDone: (role: Role) => void })
                     <View style={[styles.teamSwatch, { backgroundColor: t.primary, borderColor: t.secondary }]}>
                       <View style={[styles.teamSwatchInner, { backgroundColor: t.secondary }]} />
                     </View>
-                    <Text style={[styles.teamShort, active && { color: '#FFF' }]} numberOfLines={2}>{t.name}</Text>
+                    <Text style={[styles.teamShort, active && { color: '#FFF' }]} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit minimumFontScale={0.75}>{t.name}</Text>
                   </Pressable>
                 );
               })}
@@ -397,13 +397,13 @@ const styles = StyleSheet.create({
   // Team grid
   teamGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   teamCard: {
-    paddingVertical: spacing.md, paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md, paddingHorizontal: spacing.xs,
     borderRadius: radii.md, borderWidth: 2,
     alignItems: 'center', gap: 8,
   },
   teamSwatch: { width: 36, height: 36, borderRadius: 18, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
   teamSwatchInner: { width: 14, height: 14, borderRadius: 7 },
-  teamShort: { color: colors.text, fontSize: 13, fontWeight: '800', letterSpacing: -0.2, textAlign: 'center', lineHeight: 16 },
+  teamShort: { color: colors.text, fontSize: 12, fontWeight: '800', letterSpacing: -0.3, textAlign: 'center', lineHeight: 14, width: '100%' },
 
   // CTAs — primary and secondary share size/shape so they pair visually
   navRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl, alignItems: 'stretch' },

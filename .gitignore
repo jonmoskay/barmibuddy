@@ -9,6 +9,11 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Next.js
+.next/
+out/
+next-env.d.ts
+
 # Native
 .kotlin/
 *.orig.*
@@ -38,6 +43,11 @@ yarn-error.*
 *.tsbuildinfo
 
 # generated native folders
-/ios
-/android
+**/ios
+**/android
 .vercel
+.turbo
+
+# Supabase
+supabase/.branches
+supabase/.temp

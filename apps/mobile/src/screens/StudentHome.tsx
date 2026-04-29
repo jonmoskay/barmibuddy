@@ -172,8 +172,8 @@ export default function StudentHome({ navigation }: any) {
         <Text style={styles.xpVal}>{xpInLevel} / {XP_PER_LEVEL} XP</Text>
       </View>
       <View style={styles.xpTrack}>
-        <View style={[styles.xpFill, { width: `${xpPct}%`, backgroundColor: teamPrimary }]} />
-        <View style={[styles.xpFillTop, { width: `${xpPct}%`, backgroundColor: teamSecondary, opacity: 0.5 }]} />
+        <View style={[styles.xpFill, { width: `${xpPct}%`, backgroundColor: fillColor }]} />
+        <View style={[styles.xpFillTop, { width: `${xpPct}%`, backgroundColor: accentTextAlt, opacity: 0.5 }]} />
       </View>
 
       {/* Barmi countdown + progress */}
@@ -204,12 +204,12 @@ export default function StudentHome({ navigation }: any) {
                 {profile.parsha ? <Text style={styles.countdownSub}>Parasha {profile.parsha}</Text> : null}
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={[styles.countdownDays, { color: teamSecondary }]}>{daysLeft}</Text>
+                <Text style={[styles.countdownDays, { color: accentTextAlt }]}>{daysLeft}</Text>
                 <Text style={styles.countdownDaysLabel}>days to go</Text>
               </View>
             </View>
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${readinessPct}%`, backgroundColor: teamPrimary }]} />
+              <View style={[styles.progressFill, { width: `${readinessPct}%`, backgroundColor: fillColor }]} />
               <View style={[styles.progressMarker, { left: `${timePct}%` }]} />
             </View>
             <View style={styles.progressFooter}>
@@ -342,7 +342,7 @@ export default function StudentHome({ navigation }: any) {
                 </View>
               )}
               <Text style={[styles.lbName, isMe && { color: colors.text }]}>{isMe ? 'You' : row.name}</Text>
-              <Text style={[styles.lbPts, isMe && { color: teamSecondary }]}>{row.xp.toLocaleString()} XP</Text>
+              <Text style={[styles.lbPts, isMe && { color: accentTextAlt }]}>{row.xp.toLocaleString()} XP</Text>
             </View>
           );
         })}

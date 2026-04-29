@@ -1,0 +1,4 @@
+project_id = "barmibuddy"
+
+[functions.coach-feedback]
+verify_jwt = true
