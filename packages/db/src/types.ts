@@ -67,6 +67,7 @@ export interface PracticeSection {
   hebrew_text: string | null;
   transliteration: string | null;
   guide_audio_url: string | null;
+  source_attribution: Record<string, unknown>;
   timing_data: Record<string, unknown>;
   created_at: string;
   updated_at: string;

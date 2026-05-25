@@ -35,6 +35,7 @@ create table if not exists public.practice_sections (
   hebrew_text text,
   transliteration text,
   guide_audio_url text,
+  source_attribution jsonb not null default '{}'::jsonb,
   timing_data jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

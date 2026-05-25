@@ -19,7 +19,31 @@ type StudentSetup = {
   customAliyah: string;
   textReference: string;
   parashaConfirmed: string;
+  fetchedRef: string;
+  fetchedHeRef: string;
+  hebrewText: string;
+  englishText: string;
+  textAttribution: TextAttribution | null;
   guideStatus: "Needs recording" | "Guide uploaded";
+};
+
+type TextAttribution = {
+  source: string;
+  url: string;
+  englishVersionTitle: string;
+  englishVersionSource: string;
+  englishLicense: string;
+  hebrewVersionTitle: string;
+  hebrewVersionSource: string;
+  hebrewLicense: string;
+};
+
+type SefariaTextPayload = {
+  ref: string;
+  heRef: string;
+  hebrewText: string;
+  englishText: string;
+  attribution: TextAttribution;
 };
 
 const starterStudent: StudentSetup = {
@@ -35,6 +59,11 @@ const starterStudent: StudentSetup = {
   customAliyah: "",
   textReference: "",
   parashaConfirmed: "",
+  fetchedRef: "",
+  fetchedHeRef: "",
+  hebrewText: "",
+  englishText: "",
+  textAttribution: null,
   guideStatus: "Needs recording",
 };
 
@@ -248,6 +277,52 @@ function ReadingPlanPanel({
   student: StudentSetup;
   updateStudent: (update: Partial<StudentSetup>) => void;
 }) {
+  const [isFetchingText, setIsFetchingText] = useState(false);
+  const [fetchError, setFetchError] = useState("");
+
+  async function fetchText() {
+    if (!student.textReference.trim()) {
+      setFetchError("Enter the exact book, chapter, and verse range first.");
+      return;
+    }
+
+    setIsFetchingText(true);
+    setFetchError("");
+
+    try {
+      const response = await fetch(
+        `/api/sefaria-text?ref=${encodeURIComponent(student.textReference)}`
+      );
+      const payload = (await response.json()) as
+        | SefariaTextPayload
+        | { error?: string };
+
+      if (!response.ok || !isSefariaTextPayload(payload)) {
+        throw new Error(
+          "error" in payload && payload.error
+            ? payload.error
+            : "Could not load that reference."
+        );
+      }
+
+      updateStudent({
+        fetchedRef: payload.ref,
+        fetchedHeRef: payload.heRef,
+        hebrewText: payload.hebrewText,
+        englishText: payload.englishText,
+        textAttribution: payload.attribution,
+      });
+    } catch (error) {
+      setFetchError(
+        error instanceof Error
+          ? error.message
+          : "Could not load that reference."
+      );
+    } finally {
+      setIsFetchingText(false);
+    }
+  }
+
   return (
     <section className="rounded-lg border border-[#d9ded7] bg-white p-5 shadow-sm">
       <h2 className="text-xl font-semibold">Reading plan</h2>
@@ -266,7 +341,7 @@ function ReadingPlanPanel({
         <Field
           label="Text reference"
           onChange={(textReference) => updateStudent({ textReference })}
-          placeholder="Book 20:18-20"
+          placeholder="Exodus 24:16-18"
           value={student.textReference}
         />
       </div>
@@ -276,17 +351,98 @@ function ReadingPlanPanel({
           Text source rule
         </h3>
         <p className="mt-2 text-sm leading-6 text-[#3e4b44]">
-          For now, paste or enter the exact reference manually. Chabad.org text
-          should only be pulled once API access or written permission is
-          confirmed; scraping should not become the foundation of the product.
+          Automatic text loading uses Sefaria because it has a developer API.
+          Chabad.org stays manual-only unless they give written API/licensing
+          permission.
         </p>
+      </div>
+
+      <div className="mt-5 rounded-md border border-[#d9ded7] p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="font-semibold">Fetch Hebrew text</h3>
+            <p className="mt-1 text-sm text-[#68736d]">
+              Pull the exact reference, then let the teacher confirm or edit it.
+            </p>
+          </div>
+          <button
+            className="h-10 rounded-md bg-[#43766c] px-4 text-sm font-semibold text-white transition hover:bg-[#315950] disabled:cursor-not-allowed disabled:bg-[#9ca9a2]"
+            disabled={isFetchingText}
+            onClick={fetchText}
+            type="button"
+          >
+            {isFetchingText ? "Fetching..." : "Fetch from Sefaria"}
+          </button>
+        </div>
+
+        {fetchError ? (
+          <p className="mt-3 rounded-md border border-[#f2b8b5] bg-[#fff2f1] p-3 text-sm text-[#9d2420]">
+            {fetchError}
+          </p>
+        ) : null}
+
+        {student.hebrewText ? (
+          <div className="mt-4 grid gap-4">
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#627169]">
+                Loaded reference
+              </p>
+              <p className="text-sm font-semibold text-[#17201b]">
+                {student.fetchedRef}
+                {student.fetchedHeRef ? ` / ${student.fetchedHeRef}` : ""}
+              </p>
+            </div>
+
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#627169]">
+                Hebrew text to practise
+              </span>
+              <textarea
+                className="mt-2 min-h-40 w-full resize-y rounded-md border border-[#cfd7d0] bg-white px-3 py-3 text-right text-2xl leading-10 outline-none transition focus:border-[#43766c] focus:ring-2 focus:ring-[#cfe3dc]"
+                dir="rtl"
+                lang="he"
+                onChange={(event) =>
+                  updateStudent({ hebrewText: event.target.value })
+                }
+                value={student.hebrewText}
+              />
+            </label>
+
+            {student.englishText ? (
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#627169]">
+                  English support text
+                </span>
+                <textarea
+                  className="mt-2 min-h-28 w-full resize-y rounded-md border border-[#cfd7d0] bg-white px-3 py-3 text-sm leading-6 outline-none transition focus:border-[#43766c] focus:ring-2 focus:ring-[#cfe3dc]"
+                  onChange={(event) =>
+                    updateStudent({ englishText: event.target.value })
+                  }
+                  value={student.englishText}
+                />
+              </label>
+            ) : null}
+
+            {student.textAttribution ? (
+              <div className="rounded-md bg-[#f0f4f1] p-3 text-xs leading-5 text-[#42524a]">
+                Source: {student.textAttribution.source}
+                {student.textAttribution.hebrewVersionTitle
+                  ? `, Hebrew version: ${student.textAttribution.hebrewVersionTitle}`
+                  : ""}
+                {student.textAttribution.hebrewLicense
+                  ? `, licence: ${student.textAttribution.hebrewLicense}`
+                  : ""}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         <StatusTile label="Date logic" value={`${student.serviceTime} service`} />
         <StatusTile
           label="Teacher confirmation"
-          value={student.textReference ? "Reference entered" : "Still needed"}
+          value={student.hebrewText ? "Text loaded" : "Still needed"}
         />
         <StatusTile label="Guide track" value={student.guideStatus} />
       </div>
@@ -428,5 +584,16 @@ function StatusTile({ label, value }: { label: string; value: string }) {
       </p>
       <p className="mt-2 text-sm font-semibold text-[#17201b]">{value}</p>
     </div>
+  );
+}
+
+function isSefariaTextPayload(
+  payload: SefariaTextPayload | { error?: string }
+): payload is SefariaTextPayload {
+  return (
+    "ref" in payload &&
+    "hebrewText" in payload &&
+    typeof payload.ref === "string" &&
+    typeof payload.hebrewText === "string"
   );
 }
