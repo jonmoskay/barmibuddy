@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIX Lab × Generation</title>
+  <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #141414;
+      --border: #242424;
+      --text: #e8e8e8;
+      --muted: #777;
+      --accent: #c8f563;
+      --accent-dim: #9bbf48;
+      --danger: #ff5c5c;
+      --radius: 8px;
+      --max: 740px;
+    }
+
+    html { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    body { min-height: 100vh; }
+
+    /* ── Gate ── */
+    #gate {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 2rem;
+    }
+    #gate-inner { width: 100%; max-width: 380px; }
+    #gate-inner .wordmark { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 2.5rem; }
+    #gate-inner h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.4rem; }
+    #gate-inner p { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+    #gate-inner input {
+      width: 100%; padding: 0.8rem 1rem; border-radius: var(--radius);
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-size: 1rem; outline: none;
+      transition: border-color 0.2s;
+    }
+    #gate-inner input:focus { border-color: var(--accent); }
+    #gate-inner button {
+      width: 100%; margin-top: 0.75rem; padding: 0.8rem;
+      background: var(--accent); color: #0d0d0d; font-weight: 700;
+      font-size: 0.9rem; border: none; border-radius: var(--radius);
+      cursor: pointer; transition: background 0.15s;
+    }
+    #gate-inner button:hover { background: var(--accent-dim); }
+    #gate-error { color: var(--danger); font-size: 0.85rem; margin-top: 0.75rem; min-height: 1.2em; }
+
+    /* ── Proposal ── */
+    #proposal { display: none; }
+
+    /* Cover */
+    .cover {
+      min-height: 100vh; display: flex; flex-direction: column;
+      justify-content: flex-end; padding: 3rem 2rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+    .cover .label { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.5rem; }
+    .cover h1 { font-size: clamp(2.4rem, 7vw, 4rem); font-weight: 700; line-height: 1.08; letter-spacing: -0.02em; margin-bottom: 1.2rem; }
+    .cover h1 span { color: var(--accent); }
+    .cover .tagline { font-size: 1.05rem; color: var(--muted); max-width: 480px; margin-bottom: 3rem; }
+    .cover .meta { display: flex; gap: 2.5rem; flex-wrap: wrap; }
+    .cover .meta-item { }
+    .cover .meta-item .key { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
+    .cover .meta-item .val { font-size: 0.9rem; }
+
+    /* Sections */
+    .section { max-width: var(--max); margin: 0 auto; padding: 4rem 2rem; border-bottom: 1px solid var(--border); }
+    .section:last-of-type { border-bottom: none; }
+
+    h2 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 1.2rem; line-height: 1.2; }
+    h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--accent); letter-spacing: 0.03em; text-transform: uppercase; font-size: 0.78rem; }
+    p { color: #bbb; margin-bottom: 1rem; }
+    p:last-child { margin-bottom: 0; }
+    strong { color: var(--text); font-weight: 600; }
+
+    /* Part blocks */
+    .part {
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.5rem; margin-bottom: 1rem; background: var(--surface);
+    }
+    .part:last-child { margin-bottom: 0; }
+    .part-num { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+    .part h4 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.6rem; }
+    .part p { font-size: 0.9rem; }
+
+    /* Callout */
+    .callout {
+      background: var(--surface); border-left: 3px solid var(--accent);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 1.25rem 1.5rem; margin: 1.5rem 0;
+    }
+    .callout p { font-size: 0.92rem; color: var(--text); margin: 0; }
+
+    /* Formula */
+    .formula {
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+      align-items: center; margin: 1.25rem 0;
+    }
+    .formula .token {
+      background: #1a1a1a; border: 1px solid var(--border);
+      border-radius: 4px; padding: 0.3rem 0.7rem;
+      font-size: 0.82rem; font-weight: 600; letter-spacing: 0.04em; color: var(--accent);
+    }
+    .formula .sep { color: var(--muted); font-size: 0.9rem; }
+
+    /* Investment */
+    .price-block {
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 2rem; background: var(--surface); margin: 1.5rem 0;
+    }
+    .price-block .amount { font-size: 2.8rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+    .price-block .amount span { font-size: 1rem; color: var(--muted); font-weight: 400; }
+    .price-block ul { list-style: none; margin-top: 1.5rem; }
+    .price-block ul li { padding: 0.45rem 0; font-size: 0.9rem; color: #bbb; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 0.6rem; }
+    .price-block ul li::before { content: '✓'; color: var(--accent); font-size: 0.75rem; flex-shrink: 0; }
+
+    /* Steps */
+    .steps { display: flex; flex-direction: column; gap: 1px; margin: 1.5rem 0; }
+    .step { display: flex; gap: 1.25rem; align-items: flex-start; padding: 1.1rem 0; border-top: 1px solid var(--border); }
+    .step:first-child { border-top: none; }
+    .step .num { font-size: 0.7rem; letter-spacing: 0.1em; color: var(--muted); padding-top: 0.15rem; flex-shrink: 0; width: 2rem; }
+    .step .text { font-size: 0.95rem; }
+
+    /* T&Cs */
+    .tcs { font-size: 0.8rem; color: var(--muted); line-height: 1.7; }
+    .tcs p { margin-bottom: 0.5rem; color: var(--muted); }
+
+    /* Signature */
+    .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
+    @media (max-width: 560px) { .sig-grid { grid-template-columns: 1fr; } }
+    .sig-party .party-label { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.25rem; }
+    .sig-line { border-top: 1px solid var(--border); padding-top: 0.5rem; font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem; }
+    .sig-line.prefilled { color: var(--text); border-color: #333; }
+    .sig-date { font-size: 0.8rem; color: var(--muted); }
+
+    /* David callout */
+    .david-note {
+      background: #141f06; border: 1px solid #3a5c12;
+      border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-top: 1.25rem;
+    }
+    .david-note .dn-label { font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-dim); margin-bottom: 0.4rem; }
+    .david-note p { font-size: 0.9rem; color: #bbd98a; margin: 0; }
+
+    @media print {
+      #gate { display: none !important; }
+      #proposal { display: block !important; }
+      .cover { min-height: auto; page-break-after: always; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Password Gate ── -->
+<div id="gate">
+  <div id="gate-inner">
+    <div class="wordmark">AIX Lab — Client Portal</div>
+    <h1>Generation</h1>
+    <p>This proposal is private. Enter the access code to continue.</p>
+    <input id="pw-input" type="password" placeholder="Access code" autocomplete="current-password" />
+    <button id="pw-btn">Continue</button>
+    <div id="gate-error"></div>
+  </div>
+</div>
+
+<!-- ── Proposal ── -->
+<div id="proposal">
+
+  <!-- Cover -->
+  <div class="cover">
+    <div class="label">AIX Lab — Workshop Proposal</div>
+    <h1>AI That Works<br />for <span>Generation.</span></h1>
+    <p class="tagline">A full-day working session for Lee and the team — hands-on, practical, and built around how Generation actually works.</p>
+    <div class="meta">
+      <div class="meta-item">
+        <div class="key">Prepared for</div>
+        <div class="val">Lee &amp; the Generation team</div>
+      </div>
+      <div class="meta-item">
+        <div class="key">Prepared by</div>
+        <div class="val">Jonathan Krywicki, AIX Lab</div>
+      </div>
+      <div class="meta-item">
+        <div class="key">Date</div>
+        <div class="val">June 2026</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="section">
+    <h2>Where we're at</h2>
+    <p>We sat down with Lee to understand how Generation is operating today and what the team is making of the AI moment. The conversation was honest: there's genuine curiosity across the team, but also real questions — about what AI actually does well, what the risks are, and what it means for the people doing the work.</p>
+    <p>What came through clearly is that Generation doesn't need a general AI overview. The team is switched on. What they need is a session that meets them where they are — skips the intro slides, gets into the tools, and works through real problems with AI rather than talking about them in theory.</p>
+    <p>That's what this proposal is. A full day. Hands-on. Built around Generation's actual work.</p>
+  </div>
+
+  <!-- Working session -->
+  <div class="section">
+    <h2>A working session, not a presentation.</h2>
+    <p>Most AI training is passive. You sit, you watch demos, you leave with a PDF. A week later, nothing has changed.</p>
+    <p>This is different. Everyone in the room has their laptop open from the first hour. The exercises are built from real tasks in your business — not invented scenarios. By the end of the day, the team has used AI to do actual work, not just watched someone else do it.</p>
+    <div class="callout">
+      <p>The goal isn't to make the team feel informed about AI. It's to make them <strong>better at their jobs</strong> because of it — before they leave the room.</p>
+    </div>
+    <p>Jonathan runs the session directly. No associate, no deck hand. He's in the room for the full day, and available to the team afterward.</p>
+  </div>
+
+  <!-- Workshop parts -->
+  <div class="section">
+    <h2>The day.</h2>
+    <p>Five parts. Each one builds on the last. The pace adjusts to the room.</p>
+
+    <div class="part">
+      <div class="part-num">Part 1</div>
+      <h4>What AI actually is — and the one formula you need</h4>
+      <p>No jargon, no hype. A clear model for how large language models work — what they can and can't do, and why the gap between what people expect and what AI delivers is usually a prompting problem, not a capability problem.</p>
+      <p>Then the Prompt Formula. A single, repeatable structure that works across every AI tool the team will ever use:</p>
+      <div class="formula">
+        <div class="token">Context</div>
+        <div class="sep">+</div>
+        <div class="token">Instruction</div>
+        <div class="sep">+</div>
+        <div class="token">Format</div>
+        <div class="sep">+</div>
+        <div class="token">Tone</div>
+      </div>
+      <p>The team leaves Part 1 with something they can use in the next 10 minutes. Everything that follows builds on it.</p>
+    </div>
+
+    <div class="part">
+      <div class="part-num">Part 2</div>
+      <h4>Where AI fits Generation's work</h4>
+      <p>This part is specific to Generation. We map the actual work the team does — client work, research, communications, reporting, internal operations — and identify where AI creates genuine leverage versus where it doesn't.</p>
+      <p>Not hypothetical use cases. Real ones. Small group exercises surface ideas that no consultant would have come up with, because they come from the people who do the work every day.</p>
+      <p>By the end of Part 2, everyone in the room has at least two AI applications they're going to try the following week.</p>
+    </div>
+
+    <div class="part">
+      <div class="part-num">Part 3</div>
+      <h4>Tools in your hands</h4>
+      <p>Hands-on time with the tools that matter. ChatGPT, Claude, and where relevant, Microsoft Copilot. Everyone works through tasks from their own role — not invented scenarios — and compares results side by side.</p>
+      <p>The point isn't to pick a winner. It's to understand what each tool does well, where they break down, and how to stop fighting the tool and start using it properly.</p>
+      <p>This is where the Prompt Formula becomes instinct.</p>
+    </div>
+
+    <div class="part">
+      <div class="part-num">Part 4</div>
+      <h4>Build something real</h4>
+      <p>The afternoon shift. Teams take a real problem from the business and build something with AI — a draft, a framework, a workflow, a tool. Something you can actually use, not a slide about something you might use one day.</p>
+      <p>Jonathan moves between groups. The goal is outputs, not process — everyone leaves with something in their hands that didn't exist when the day started.</p>
+    </div>
+
+    <div class="part">
+      <div class="part-num">Part 5</div>
+      <h4>Risk, strategy, and what's actually coming</h4>
+      <p>The things that get glossed over at every other AI event. What you should never put in a prompt. Data privacy in practice, not in theory. When local LLMs matter and how to think about deploying them. What Fable changes and why Anthropic's latest development is different from the usual model release noise.</p>
+      <p>And then the strategic question that most organisations are still avoiding: what does an AI strategy actually look like for a business like Generation — beyond "use more AI"?</p>
+      <p>This is the part that separates a workshop from a working session. It's where the conversation usually gets most interesting.</p>
+    </div>
+  </div>
+
+  <!-- Post-workshop 1:1s -->
+  <div class="section">
+    <h2>After the day.</h2>
+    <p>The workshop is where things click. The week after is where they stick.</p>
+    <p>In the days following the session, Jonathan schedules individual follow-up conversations with key team members. These are 45-minute sessions — no agenda, no slides — focused on whatever came up in the workshop and how it connects to each person's specific role and priorities.</p>
+    <p>They're not a debrief. They're a working session. Bring a problem you haven't solved yet.</p>
+
+    <div class="david-note">
+      <div class="dn-label">Confirmed 1:1 — David</div>
+      <p>A dedicated individual session with David is already confirmed as part of this engagement. This is in addition to sessions with other key team members and is locked in as a specific commitment.</p>
+    </div>
+  </div>
+
+  <!-- Investment -->
+  <div class="section">
+    <h2>One price. Everything included.</h2>
+    <div class="price-block">
+      <div class="amount">$4,750 <span>+ GST</span></div>
+      <ul>
+        <li>Full-day workshop — up to 8 hours, on-site or remote</li>
+        <li>All preparation and customisation for Generation</li>
+        <li>Post-workshop 1:1 sessions with key team members (including David)</li>
+        <li>30 days of follow-up support via email or message</li>
+        <li>Workshop materials, prompt library, and reference guide</li>
+      </ul>
+    </div>
+    <p>No per-head pricing. No add-ons. No surprises. Bring the whole team.</p>
+  </div>
+
+  <!-- Next steps -->
+  <div class="section">
+    <h2>What happens next.</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="num">01</div>
+        <div class="text">Read through this proposal. If something doesn't make sense or needs adjusting, reach out directly — jonathan@aixlab.co.</div>
+      </div>
+      <div class="step">
+        <div class="num">02</div>
+        <div class="text">Sign below to confirm the engagement. A 50% deposit is due on signing; the balance is due the week before the workshop.</div>
+      </div>
+      <div class="step">
+        <div class="num">03</div>
+        <div class="text">Lock in a date that suits Lee and the team. Jonathan will work around Generation's schedule.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- T&Cs -->
+  <div class="section">
+    <h2>Terms.</h2>
+    <div class="tcs">
+      <p><strong>Payment.</strong> A 50% deposit is due upon signing. The remaining 50% is due 7 days before the workshop date. All amounts are in Australian dollars exclusive of GST.</p>
+      <p><strong>Cancellation.</strong> Cancellations made more than 14 days before the workshop date will receive a full refund of the deposit. Cancellations within 14 days are non-refundable. Reschedules within 14 days are at Jonathan's discretion.</p>
+      <p><strong>Rescheduling.</strong> One reschedule is included at no cost with at least 14 days' notice. Subsequent reschedules may incur an administration fee.</p>
+      <p><strong>Confidentiality.</strong> Jonathan will not disclose any information shared during preparation or the workshop. All client materials remain the property of Generation.</p>
+      <p><strong>Intellectual property.</strong> All workshop materials prepared specifically for Generation are owned by Generation on delivery. AIX Lab retains rights to its methodologies, frameworks, and general content.</p>
+      <p><strong>Limitation of liability.</strong> AIX Lab's liability is limited to the total fees paid under this agreement. AIX Lab is not liable for indirect or consequential loss.</p>
+      <p><strong>Governing law.</strong> This agreement is governed by the laws of Queensland, Australia.</p>
+    </div>
+  </div>
+
+  <!-- Signatures -->
+  <div class="section">
+    <h2>Signatures.</h2>
+    <p>By signing, both parties agree to the terms set out in this proposal.</p>
+    <div class="sig-grid">
+      <div class="sig-party">
+        <div class="party-label">AIX Lab</div>
+        <div class="sig-line prefilled">Jonathan Krywicki</div>
+        <div class="sig-date">Director, AIX Lab</div>
+      </div>
+      <div class="sig-party">
+        <div class="party-label">Generation</div>
+        <div class="sig-line">&nbsp;</div>
+        <div class="sig-date">Name &amp; title</div>
+        <br/>
+        <div class="sig-line">&nbsp;</div>
+        <div class="sig-date">Date</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /proposal -->
+
+<script>
+  // bcrypt hash for password "generation2026"
+  const HASH = '$2b$10$lJ0kEoYu2wqP1bWKkRS7KO5KUvBorICT24ZJC8ULwq9UTwm8ww/w.';
+  const SESSION_KEY = 'portal_generation_auth';
+
+  const gate = document.getElementById('gate');
+  const proposal = document.getElementById('proposal');
+  const input = document.getElementById('pw-input');
+  const btn = document.getElementById('pw-btn');
+  const errEl = document.getElementById('gate-error');
+
+  function unlock() {
+    gate.style.display = 'none';
+    proposal.style.display = 'block';
+  }
+
+  // Check session
+  if (sessionStorage.getItem(SESSION_KEY) === '1') {
+    unlock();
+  }
+
+  async function attempt() {
+    const val = input.value.trim();
+    if (!val) return;
+    btn.disabled = true;
+    btn.textContent = 'Checking…';
+    errEl.textContent = '';
+    try {
+      const ok = await dcodeIO.bcrypt.compare(val, HASH);
+      if (ok) {
+        sessionStorage.setItem(SESSION_KEY, '1');
+        unlock();
+      } else {
+        errEl.textContent = 'Incorrect access code.';
+        input.value = '';
+        input.focus();
+      }
+    } catch (e) {
+      errEl.textContent = 'Something went wrong. Please try again.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Continue';
+    }
+  }
+
+  btn.addEventListener('click', attempt);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') attempt(); });
+</script>
+</body>
+</html>
