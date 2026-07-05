@@ -1,4 +1,18 @@
-# BarmiBuddy — Working Agreement
+# BarmiBuddy — Historical Repo Warning
+
+This is not the production BarmiBuddy source of truth anymore.
+
+The real Flutter/Firebase app is:
+
+`/Users/jonathankrywicki/Code/bar-mitzvah-buddy`
+
+If Jonathan asks for current BarmiBuddy app, iPhone, teacher dashboard, student practice, Firebase, Firestore rules, or UX implementation work, use the Flutter repo above.
+
+Use this folder only if Jonathan explicitly asks for the old React/Supabase/Vercel project.
+
+---
+
+# Historical Working Agreement
 
 This file is the source of truth for decisions JK has already made. **Do not relitigate these. Do not suggest reversing them unless JK explicitly asks.** If a tangent would touch one of these, stop and ask first.
 

@@ -1,4 +1,16 @@
-# BarmiBuddy
+# BarmiBuddy Historical Repo
+
+Do not use this folder as the production app source of truth.
+
+The real BarmiBuddy Flutter/Firebase app is:
+
+`/Users/jonathankrywicki/Code/bar-mitzvah-buddy`
+
+Use this repo only as historical reference unless Jonathan explicitly asks for the older React/Supabase/Vercel project.
+
+---
+
+# Historical Notes
 
 Monorepo for the BarmiBuddy app. The marketing site (barmibuddy.com) lives in a separate repo — this repo is the app and its supporting backend.
 
